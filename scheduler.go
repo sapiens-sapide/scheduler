@@ -43,12 +43,12 @@ func (scheduler *Scheduler) RunAt(time time.Time, function task.Function, params
 		return "", err
 	}
 
-	task := task.New(funcMeta, params)
+	tsk := task.New(funcMeta, params)
 
-	task.NextRun = time
+	tsk.NextRun = time
 
-	scheduler.registerTask(task)
-	return task.Hash(), nil
+	scheduler.registerTask(tsk)
+	return tsk.Hash(), nil
 }
 
 // RunAfter executes function once after a specific duration has elapsed.
@@ -63,14 +63,14 @@ func (scheduler *Scheduler) RunEvery(duration time.Duration, function task.Funct
 		return "", err
 	}
 
-	task := task.New(funcMeta, params)
+	tsk := task.New(funcMeta, params)
 
-	task.IsRecurring = true
-	task.Duration = duration
-	task.NextRun = time.Now().Add(duration)
+	tsk.IsRecurring = true
+	tsk.Duration = duration
+	tsk.NextRun = time.Now().Add(duration)
 
-	scheduler.registerTask(task)
-	return task.Hash(), nil
+	scheduler.registerTask(tsk)
+	return tsk.Hash(), nil
 }
 
 // Start will run the scheduler's timer and will trigger the execution
@@ -120,12 +120,12 @@ func (scheduler *Scheduler) Wait() {
 // Cancel is used to cancel the planned execution of a specific task using it's ID.
 // The ID is returned when the task was scheduled using RunAt, RunAfter or RunEvery
 func (scheduler *Scheduler) Cancel(taskID task.ID) error {
-	task, found := scheduler.tasks[taskID]
+	tsk, found := scheduler.tasks[taskID]
 	if !found {
 		return fmt.Errorf("Task not found")
 	}
 
-	_ = scheduler.taskStore.Remove(task)
+	_ = scheduler.taskStore.Remove(tsk)
 	delete(scheduler.tasks, taskID)
 	return nil
 }
@@ -191,8 +191,12 @@ func (scheduler *Scheduler) populateTasks(triggerExpiredTasks bool) error {
 }
 
 func (scheduler *Scheduler) persistRegisteredTasks() error {
-	for _, task := range scheduler.tasks {
-		err := scheduler.taskStore.Add(task)
+	for _, tsk := range scheduler.tasks {
+		if tsk.IsRecurring {
+			// only persist recurring tasks with new hash
+			scheduler.taskStore.Remove(tsk)
+		}
+		err := scheduler.taskStore.Add(tsk)
 		if err != nil {
 			return err
 		}
@@ -201,13 +205,13 @@ func (scheduler *Scheduler) persistRegisteredTasks() error {
 }
 
 func (scheduler *Scheduler) runPending() {
-	for _, task := range scheduler.tasks {
-		if task.IsDue() {
-			go task.Run()
+	for _, tsk := range scheduler.tasks {
+		if tsk.IsDue() {
+			go tsk.Run()
 
-			if !task.IsRecurring {
-				_ = scheduler.taskStore.Remove(task)
-				delete(scheduler.tasks, task.Hash())
+			if !tsk.IsRecurring {
+				_ = scheduler.taskStore.Remove(tsk)
+				delete(scheduler.tasks, tsk.Hash())
 			}
 		}
 	}
@@ -229,5 +233,9 @@ func (scheduler *Scheduler) RegisterFuncs(funcs []task.Function) {
 }
 
 func (scheduler *Scheduler) persistTask(task *task.Task) error {
+	if task.IsRecurring {
+		// only persist recurring tasks with new hash
+		scheduler.taskStore.Remove(task)
+	}
 	return scheduler.taskStore.Add(task)
 }
