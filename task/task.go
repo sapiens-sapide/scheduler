@@ -54,7 +54,7 @@ func (task *Task) Run() {
 	// Reschedule task first to prevent running the task
 	// again in case the execution time takes more than the
 	// task's duration value.
-	task.scheduleNextRun()
+	task.NextRun = time.Now().Add(24 * time.Hour)
 
 	function := reflect.ValueOf(task.Func.function)
 	params := make([]reflect.Value, len(task.Params))
@@ -62,6 +62,7 @@ func (task *Task) Run() {
 		params[i] = reflect.ValueOf(param)
 	}
 	function.Call(params)
+	task.scheduleNextRun()
 }
 
 // Hash will return the SHA1 representation of the task's data.
@@ -83,6 +84,6 @@ func (task *Task) scheduleNextRun() {
 		return
 	}
 
-	task.LastRun = task.NextRun
-	task.NextRun = task.NextRun.Add(task.Duration)
+	task.LastRun = time.Now()
+	task.NextRun = time.Now().Add(task.Duration)
 }
