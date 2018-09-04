@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rakanalh/scheduler/storage"
-	"github.com/rakanalh/scheduler/task"
+	"github.com/sapiens-sapide/scheduler/storage"
+	"github.com/sapiens-sapide/scheduler/task"
 )
 
 // Scheduler is used to schedule tasks. It holds information about those tasks
@@ -75,12 +75,14 @@ func (scheduler *Scheduler) RunEvery(duration time.Duration, function task.Funct
 
 // Start will run the scheduler's timer and will trigger the execution
 // of tasks depending on their schedule.
-func (scheduler *Scheduler) Start() error {
+// if triggerExpiredTasks is true, out-of-date task will be triggered immediately,
+// otherwise they will be deleted
+func (scheduler *Scheduler) Start(triggerExpiredTasks bool) error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Populate tasks from storage
-	if err := scheduler.populateTasks(); err != nil {
+	if err := scheduler.populateTasks(triggerExpiredTasks); err != nil {
 		return err
 	}
 	if err := scheduler.persistRegisteredTasks(); err != nil {
@@ -137,7 +139,7 @@ func (scheduler *Scheduler) Clear() {
 	scheduler.funcRegistry = task.NewFuncRegistry()
 }
 
-func (scheduler *Scheduler) populateTasks() error {
+func (scheduler *Scheduler) populateTasks(triggerExpiredTasks bool) error {
 	tasks, err := scheduler.taskStore.Fetch()
 	if err != nil {
 		return err
@@ -162,14 +164,20 @@ func (scheduler *Scheduler) populateTasks() error {
 			dbTask.Func, _ = scheduler.funcRegistry.Get(dbTask.Func.Name)
 			registeredTask = dbTask
 			scheduler.tasks[dbTask.Hash()] = registeredTask
+			continue
 		}
 
-		// Skip task which is not a recurring one and the NextRun has already passed
+		// Hold task which is not a recurring one and the NextRun has already passed
 		if !dbTask.IsRecurring && dbTask.NextRun.Before(time.Now()) {
-			// We might have a task instance which was executed already.
-			// In this case, delete it.
-			_ = scheduler.taskStore.Remove(dbTask)
-			delete(scheduler.tasks, dbTask.Hash())
+			if triggerExpiredTasks {
+				(*dbTask).IsDue() = true
+				dbTask.Func, _ = scheduler.funcRegistry.Get(dbTask.Func.Name)
+				registeredTask = dbTask
+				scheduler.tasks[dbTask.Hash()] = registeredTask
+			} else {
+				_ = scheduler.taskStore.Remove(dbTask)
+				delete(scheduler.tasks, dbTask.Hash())
+			}
 			continue
 		}
 
