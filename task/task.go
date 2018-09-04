@@ -69,7 +69,11 @@ func (task *Task) Hash() ID {
 	hash := sha1.New()
 	_, _ = io.WriteString(hash, task.Func.Name)
 	_, _ = io.WriteString(hash, fmt.Sprintf("%+v", task.Params))
-	_, _ = io.WriteString(hash, fmt.Sprintf("%s", task.Schedule.Duration))
+	if task.IsRecurring {
+		_, _ = io.WriteString(hash, fmt.Sprintf("%s", task.Schedule.Duration))
+	} else {
+		_, _ = io.WriteString(hash, fmt.Sprintf("%s", task.Schedule.NextRun))
+	}
 	_, _ = io.WriteString(hash, fmt.Sprintf("%t", task.Schedule.IsRecurring))
 	return ID(fmt.Sprintf("%x", hash.Sum(nil)))
 }

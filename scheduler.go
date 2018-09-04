@@ -167,7 +167,7 @@ func (scheduler *Scheduler) populateTasks(triggerExpiredTasks bool) error {
 			continue
 		}
 
-		// Hold task which is not a recurring one and the NextRun has already passed
+		// Handle task which is not a recurring one and the NextRun has already passed
 		if !dbTask.IsRecurring && dbTask.NextRun.Before(time.Now()) {
 			if triggerExpiredTasks {
 				(*dbTask).NextRun = time.Now()
@@ -218,7 +218,7 @@ func (scheduler *Scheduler) registerTask(task *task.Task) {
 	scheduler.tasks[task.Hash()] = task
 	err := scheduler.persistTask(task)
 	if err != nil {
-		log.Println("failed to persist task")
+		log.Printf("failed to persist task")
 	}
 }
 
