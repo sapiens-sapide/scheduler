@@ -170,7 +170,7 @@ func (scheduler *Scheduler) populateTasks(triggerExpiredTasks bool) error {
 		// Hold task which is not a recurring one and the NextRun has already passed
 		if !dbTask.IsRecurring && dbTask.NextRun.Before(time.Now()) {
 			if triggerExpiredTasks {
-				(*dbTask).IsDue() = true
+				(*dbTask).NextRun = time.Now()
 				dbTask.Func, _ = scheduler.funcRegistry.Get(dbTask.Func.Name)
 				registeredTask = dbTask
 				scheduler.tasks[dbTask.Hash()] = registeredTask
