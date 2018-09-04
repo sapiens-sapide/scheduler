@@ -216,4 +216,18 @@ func (scheduler *Scheduler) runPending() {
 func (scheduler *Scheduler) registerTask(task *task.Task) {
 	_, _ = scheduler.funcRegistry.Add(task.Func)
 	scheduler.tasks[task.Hash()] = task
+	err := scheduler.persistTask(task)
+	if err != nil {
+		log.Println("failed to persist task")
+	}
+}
+
+func (scheduler *Scheduler) RegisterFuncs(funcs []task.Function) {
+	for _, f := range funcs {
+		scheduler.funcRegistry.Add(f)
+	}
+}
+
+func (scheduler *Scheduler) persistTask(task *task.Task) error {
+	return scheduler.taskStore.Add(task)
 }
