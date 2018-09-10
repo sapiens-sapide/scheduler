@@ -146,21 +146,14 @@ func (scheduler *Scheduler) populateTasks(triggerExpiredTasks bool) error {
 	}
 
 	for _, dbTask := range tasks {
-		// If we can't find the function, it's been changed/removed by user
-		exists := scheduler.funcRegistry.Exists(dbTask.Func.Name)
-		if !exists {
-			log.Printf("%s was not found, it will be removed\n", dbTask.Func.Name)
-			_ = scheduler.taskStore.Remove(dbTask)
-			continue
-		}
+		//remove taks from db to avoid duplicate
+		scheduler.taskStore.Remove(dbTask)
 
 		// If the task instance is still registered with the same computed hash then move on.
 		// Otherwise, one of the attributes changed and therefore, the task instance should
 		// be added to the list of tasks to be executed with the stored params
 		registeredTask, ok := scheduler.tasks[dbTask.Hash()]
 		if !ok {
-			log.Printf("Detected a change in attributes of one of the instances of task %s, \n",
-				dbTask.Func.Name)
 			dbTask.Func, _ = scheduler.funcRegistry.Get(dbTask.Func.Name)
 			registeredTask = dbTask
 			scheduler.tasks[dbTask.Hash()] = registeredTask
