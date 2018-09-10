@@ -22,8 +22,9 @@ type Schedule struct {
 // Task holds information about task
 type Task struct {
 	Schedule
-	Func   FunctionMeta
-	Params []Param
+	Func        FunctionMeta
+	Params      []Param
+	MustPersist bool
 }
 
 // New returns an instance of task

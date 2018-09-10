@@ -192,14 +192,7 @@ func (scheduler *Scheduler) populateTasks(triggerExpiredTasks bool) error {
 
 func (scheduler *Scheduler) persistRegisteredTasks() error {
 	for _, tsk := range scheduler.tasks {
-		if tsk.IsRecurring {
-			// only persist recurring tasks with new hash
-			scheduler.taskStore.Remove(tsk)
-		}
-		err := scheduler.taskStore.Add(tsk)
-		if err != nil {
-			return err
-		}
+		scheduler.persistTask(tsk)
 	}
 	return nil
 }
@@ -236,8 +229,12 @@ func (scheduler *Scheduler) RegisterFuncs(funcs []task.Function) {
 
 func (scheduler *Scheduler) persistTask(task *task.Task) error {
 	if task.IsRecurring {
-		// only persist recurring tasks with new hash
-		scheduler.taskStore.Remove(task)
+		if task.MustPersist {
+			scheduler.taskStore.Remove(task) // prevent duplication
+			return scheduler.taskStore.Add(task)
+		}
+		return nil
+	} else {
+		return scheduler.taskStore.Add(task)
 	}
-	return scheduler.taskStore.Add(task)
 }
