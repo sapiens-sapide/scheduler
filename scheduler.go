@@ -47,7 +47,7 @@ func (scheduler *Scheduler) RunAt(time time.Time, function task.Function, params
 
 	tsk.NextRun = time
 
-	scheduler.registerTask(tsk)
+	scheduler.registerTask(tsk, true)
 	return tsk.Hash(), nil
 }
 
@@ -57,7 +57,7 @@ func (scheduler *Scheduler) RunAfter(duration time.Duration, function task.Funct
 }
 
 // RunEvery will schedule function to be executed every time the duration has elapsed.
-func (scheduler *Scheduler) RunEvery(duration time.Duration, function task.Function, params ...task.Param) (task.ID, error) {
+func (scheduler *Scheduler) RunEvery(duration time.Duration, function task.Function, persist bool, params ...task.Param) (task.ID, error) {
 	funcMeta, err := scheduler.funcRegistry.Add(function)
 	if err != nil {
 		return "", err
@@ -69,7 +69,7 @@ func (scheduler *Scheduler) RunEvery(duration time.Duration, function task.Funct
 	tsk.Duration = duration
 	tsk.NextRun = time.Now().Add(duration)
 
-	scheduler.registerTask(tsk)
+	scheduler.registerTask(tsk, persist)
 	return tsk.Hash(), nil
 }
 
@@ -217,12 +217,14 @@ func (scheduler *Scheduler) runPending() {
 	}
 }
 
-func (scheduler *Scheduler) registerTask(task *task.Task) {
+func (scheduler *Scheduler) registerTask(task *task.Task, persist bool) {
 	_, _ = scheduler.funcRegistry.Add(task.Func)
 	scheduler.tasks[task.Hash()] = task
-	err := scheduler.persistTask(task)
-	if err != nil {
-		log.Printf("failed to persist task")
+	if persist {
+		err := scheduler.persistTask(task)
+		if err != nil {
+			log.Printf("failed to persist task")
+		}
 	}
 }
 
