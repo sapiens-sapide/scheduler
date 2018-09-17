@@ -146,7 +146,8 @@ func (scheduler *Scheduler) populateTasks(triggerExpiredTasks bool) error {
 	}
 
 	for _, dbTask := range tasks {
-		//remove taks from db to avoid duplicate
+		// remove taks from db to avoid duplicate
+		// it'll be persisted again later on
 		scheduler.taskStore.Remove(dbTask)
 
 		// If the task instance is still registered with the same computed hash then move on.
@@ -168,7 +169,6 @@ func (scheduler *Scheduler) populateTasks(triggerExpiredTasks bool) error {
 				registeredTask = dbTask
 				scheduler.tasks[dbTask.Hash()] = registeredTask
 			} else {
-				_ = scheduler.taskStore.Remove(dbTask)
 				delete(scheduler.tasks, dbTask.Hash())
 			}
 			continue
@@ -193,12 +193,11 @@ func (scheduler *Scheduler) persistRegisteredTasks() error {
 func (scheduler *Scheduler) runPending() {
 	for _, tsk := range scheduler.tasks {
 		if tsk.IsDue() {
-			go tsk.Run()
-
 			if !tsk.IsRecurring {
 				_ = scheduler.taskStore.Remove(tsk)
 				delete(scheduler.tasks, tsk.Hash())
 			}
+			go tsk.Run()
 		}
 	}
 }
